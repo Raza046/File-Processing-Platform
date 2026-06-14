@@ -1,0 +1,146 @@
+x-depends-on: &common-depends
+  db:
+    condition: service_healthy
+
+
+
+services:
+
+  backend:
+
+    container_name: django-backend
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      - 8000:8000
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+    volumes:
+      - .:/myapp
+      - static_volume:/myapp/static
+
+    env_file:
+      - .env
+
+    # healthcheck:
+    #   test : ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+    #   interval: 5s
+    #   timeout: 5s
+    #   retries: 5
+
+  nginx:
+    container_name: nginx-reverse-proxy
+    image: nginx
+    ports:
+      - 80:80
+    volumes:
+      - static_volume:/myapp/static
+      - /etc/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    env_file:
+      - .env
+
+    # depends_on:
+    #   - backend
+
+    # healthcheck:
+    #   test: ["CMD-SHELL", "pg_isready -h db -p 5432 -U $POSTGRES_USER"]
+    #   interval: 5s
+    #   timeout: 5s
+    #   retries: 5
+
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    ports:
+      - 5433:5432
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  celeryworker:
+    build: .
+    container_name: celery-worker
+    # command: celery -A config worker --loglevel=info
+    command: celery -A config.celery:app worker --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - rabbitmq
+
+  celerybeat:
+    build: .
+    container_name: celery-beat
+    command: celery -A config.celery:app beat --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - rabbitmq
+
+  flower:
+    build: .
+      # context: .
+      # dockerfile: ./compose/local/django/Dockerfile
+    container_name: flower
+    command: celery -A config.celery:app flower --port=5555
+    ports:
+      - "5555:5555"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+
+    ports:
+      - "5673:5672"
+      - "15672:15672"
+
+    environment:
+      RABBITMQ_DEFAULT_VHOST: "/"
+      RABBITMQ_DEFAULT_USER: "guest"
+      RABBITMQ_DEFAULT_PASS: "guest"
+
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+
+  localstack:
+    image: localstack/localstack
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+      - LOCALSTACK_AUTH_TOKEN=ls-biMoJALu-halI-HAgU-FEVU-huhA9845c16a
+    volumes:
+      - ./localstack:/var/lib/localstack
+
+volumes:
+  postgres_data:
+  static_volume:
+  rabbitmq_data:
