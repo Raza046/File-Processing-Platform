@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from files.views import FileProcessingHistoryView, FileStatusView, FileUploadView, FilesListView, FileUpdateView
+from files.views import AbortMultipartUploadView, CompleteFileUploadView, FileProcessingHistoryView, FileStatusView, FilesListView, FileUpdateView, GeneratePreSignedUrlView, InitiateFileUploadView, ListPartsUploadedView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -34,11 +34,16 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/', include(router.urls)),
-    path('api/file-upload', FileUploadView.as_view(), name='file_upload'),
-    path('api/<str:pk>/file-update', FileUpdateView.as_view(), name='file_update'),
+    path('api/file-upload/initiate', InitiateFileUploadView.as_view(), name='file_upload'),
+    path('api/file-upload/presigned-url', GeneratePreSignedUrlView.as_view(), name='pre_signed_url'),
+    path('/api/file-upload/complete/', CompleteFileUploadView.as_view(), name='complete_upload'),
+    path('/api/file-upload/abort/', AbortMultipartUploadView.as_view(), name='upload_abort'), # File abort
+    path('/api/file-upload/list-multipart/', ListPartsUploadedView.as_view(), name='multipart_list'), # File abort
     # path("api/files/<str:pk>/status/", FileStatusView.as_view(), name="file-status",),
-    # path('api/files/<str:pk>/status', FileStatusView.as_view(), name='file_status'),
-
+    # path('/api/file-upload/{id}/status/', CompleteFileUploadView.as_view(), name='upload_status'), # File status
+    # path('api/<str:pk>/file-update', FileUpdateView.as_view(), name='file_update'),
+    # path("api/files/<str:pk>/status/", FileStatusView.as_view(), name="file-status",),
+ 
 
     # path('api/file/list/', FilesListView.as_view(), name='file_list')
 

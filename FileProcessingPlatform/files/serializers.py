@@ -1,7 +1,7 @@
 from rest_framework.serializers import Serializer, ModelSerializer
-
+from rest_framework import serializers
 from files.models import File, ProcessingHistory
-from files.services.s3_service import generate_presigned_upload_url
+from files.services.s3_service import create_multipart_upload, generate_presigned_upload_url
 
 
 
@@ -28,6 +28,46 @@ class FileUpdateSerializer(ModelSerializer):
         fields = ("status",)
 
 
+class GeneratePreSignedUrlSerializer(Serializer):
+
+    key = serializers.CharField()
+    upload_id = serializers.CharField()
+    part_number = serializers.IntegerField()
+
+
+    # def create(self, validated_data):
+
+    #     presigned_url = generate_presigned_upload_url(
+    #         validated_data["key"],
+    #         validated_data["upload_id"],
+    #         validated_data["part_number"]
+    #     )
+    #     print(presigned_url)
+    #     return {
+    #         "presigned_url": presigned_url,
+    #         "part_number":validated_data["part_number"]
+    #     }
+
+
+class MultipartPartSerializer(serializers.Serializer):
+    part_number = serializers.IntegerField()
+    etag = serializers.CharField()
+
+class CompleteMultipartUploadSerializer(Serializer):
+    key = serializers.CharField()
+    upload_id = serializers.CharField()
+    part_number = MultipartPartSerializer(many=True)
+
+
+class AbortMultipartUploadSerializer(Serializer):
+    key = serializers.CharField()
+    upload_id = serializers.CharField()
+
+
+class ListPartsUploadedSerializer(Serializer):
+    key = serializers.CharField()
+    upload_id = serializers.CharField()
+
 
 class FileUploadSerializer(ModelSerializer):
 
@@ -38,9 +78,9 @@ class FileUploadSerializer(ModelSerializer):
 
     def validate_file_size(self, file_size):
 
-        max_size = 10 * 1024 * 1024; # 10MB
+        max_size = 1000 * 1024 * 1024; # 10MB
         if file_size > max_size:
-            raise ValueError("File size exceed 10MB!")
+            raise ValueError("File size exceed 1MB!")
 
         return file_size
 

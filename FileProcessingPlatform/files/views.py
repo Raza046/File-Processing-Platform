@@ -10,8 +10,9 @@ from files.permissions import IsOwnerOfFilePermission
 from files.tasks import process_file_task
 from files.models import File, ProcessingHistory
 from files.pagination import FileListPagination, ProcesingHistoryPagination
-from files.serializers import FileListSerializer, FileProcessingHistorySerializer, FileUpdateSerializer, FileUploadSerializer
-from files.services.s3_service import generate_presigned_upload_url
+from files.serializers import ( CompleteMultipartUploadSerializer, FileListSerializer, FileProcessingHistorySerializer, FileUpdateSerializer,
+                                FileUploadSerializer, GeneratePreSignedUrlSerializer, AbortMultipartUploadSerializer, ListPartsUploadedSerializer )
+from files.services.s3_service import generate_presigned_upload_url, create_multipart_upload, complete_multipart_upload, list_parts_uploaded
 # Create your views here.
 
 
@@ -42,11 +43,11 @@ class FileProcessingHistoryView(ReadOnlyModelViewSet):
     ]
 
 
-class FileUploadView(CreateAPIView):
+
+class InitiateFileUploadView(CreateAPIView):
     serializer_class = FileUploadSerializer
     model = File
     permission_classes = [IsAuthenticated]
-
 
     def post(self, request, *args, **kwargs):
 
@@ -54,20 +55,143 @@ class FileUploadView(CreateAPIView):
         serializer.is_valid(raise_exception=True)
         file_instance = serializer.save()
 
-        presigned_url = generate_presigned_upload_url(
-            file_instance.file_name
+        # presigned_url = generate_presigned_upload_url(
+        #     file_instance.file_name
+        #     )
+
+        multipart_upload_response = create_multipart_upload(
+            file_instance.file_name, file_instance.file_size
             )
-        file_instance.storage_path = presigned_url['filename']
+
+        file_instance.storage_path = multipart_upload_response['key']
         file_instance.save(update_fields=['storage_path'])
 
-        return Response(
-            {
-                "id": file_instance.id,
-                "file_name": file_instance.file_name,
-                "url":presigned_url['upload_url'],
-            },
-            status = status.HTTP_201_CREATED
+        return Response(multipart_upload_response,
+            # {
+            #     "id": file_instance.id,
+            #     "file_name": file_instance.file_name,
+            #     "upload_id":presigned_url['upload_url'],
+            # },
+            status = status.HTTP_200_OK
         )
+
+
+class GeneratePreSignedUrlView(CreateAPIView):
+    serializer_class = GeneratePreSignedUrlSerializer
+    model = File
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+
+        serializer = self.get_serializer(data=request.data)
+        response = serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+
+        presigned_url = generate_presigned_upload_url(
+            data["key"],
+            data["upload_id"],
+            data["part_number"]
+        )
+
+        print(presigned_url)
+
+        return Response(presigned_url, status = status.HTTP_200_OK)
+
+
+class CompleteFileUploadView(CreateAPIView):
+    serializer_class = CompleteMultipartUploadSerializer
+    model = File
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+
+        serializer = self.get_serializer(data=request.data)
+
+        data = serializer.validated_data
+        print("=========COMPLETE VALIDATED DATA==========")
+        print(data)
+        print("=========COMPLETE VALIDATED DATA==========")
+        response = complete_multipart_upload(
+            data["key"],
+            data["upload_id"],
+            data["part_number"]
+        )
+
+        print(response)
+
+        return Response(response, status = status.HTTP_200_OK)
+
+
+
+class AbortMultipartUploadView(CreateAPIView):
+    serializer_class = AbortMultipartUploadSerializer
+    model = File
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+
+        serializer = self.get_serializer(data=request.data)
+
+        data = serializer.validated_data
+        response = abort_multipart_upload(
+            data["key"],
+            data["upload_id"],
+            data["part_number"]
+        )
+
+        print(response)
+
+        return Response(response, status = status.HTTP_200_OK)
+
+
+class ListPartsUploadedView(CreateAPIView):
+    serializer_class = ListPartsUploadedSerializer
+    model = File
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+
+        serializer = self.get_serializer(data=request.data)
+
+        data = serializer.validated_data
+        response = list_parts_uploaded(
+            data["key"],
+            data["upload_id"]
+        )
+
+        print(response)
+
+        return Response(response, status = status.HTTP_200_OK)
+
+
+
+# class FileUploadView(CreateAPIView):.
+#     serializer_class = FileUploadSerializer
+#     model = File
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request, *args, **kwargs):
+
+#         serializer = self.get_serializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         file_instance = serializer.save()
+
+#         presigned_url = generate_presigned_upload_url(
+#             file_instance.file_name
+#             )
+#         file_instance.storage_path = presigned_url['filename']
+#         file_instance.save(update_fields=['storage_path'])
+
+#         return Response(
+#             {
+#                 "id": file_instance.id,
+#                 "file_name": file_instance.file_name,
+#                 "url":presigned_url['upload_url'],
+#             },
+#             status = status.HTTP_201_CREATED
+#         )
+
 
 
 class FileUpdateView(UpdateAPIView):

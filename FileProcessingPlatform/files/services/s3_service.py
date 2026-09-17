@@ -1,3 +1,4 @@
+import math
 import uuid
 
 import boto3
@@ -19,21 +20,85 @@ s3_client = boto3.client(
 )
 
 
-def generate_presigned_upload_url(filename):
 
-    unique_filename = f"{uuid.uuid4()}--{filename}"
+def create_multipart_upload(file_name, file_size):
+
+    key = file_name
+    response = s3_client.create_multipart_upload(
+        Bucket="my-bucket",
+        Key=key
+    )
+    file_size_in_MBs = file_size / (1024 * 1024) # into MBs
+    part_size = math.ceil(file_size_in_MBs / 50) # each part 50MB
+
+
+    print("=============MULTIPART-UPLOAD===============")
+    print(response)
+    print("=============MULTIPART-UPLOAD===============")
+    return {
+        "upload_id": response.get("UploadId"),
+        "key":key,
+        "total_size":file_size,
+        "part_size":part_size
+        }
+
+
+def generate_presigned_upload_url(key, upload_id, part_number):
+
+#    unique_filename = f"{uuid.uuid4()}--{filename}"
 
     response = s3_client.generate_presigned_url(
-        ClientMethod = "put_object",
+        ClientMethod = "upload_part",
         Params={
             "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-            "Key": unique_filename
+            "Key": key,
+            "UploadId":upload_id,
+            "PartNumber":part_number
         },
         ExpiresIn=3600,
     )
 
-    return {
-        "upload_url":response,
-        "filename": unique_filename
-    }
+    return response
 
+
+def complete_multipart_upload(key, upload_id, s3_parts):
+
+    response = s3_client.complete_multipart_upload(
+        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+        Key=key,
+        MultipartUpload={
+            'Parts': s3_parts
+        },
+        UploadId=upload_id,
+    )
+
+    print("=============COMPLETE MULTIPART-UPLOAD===============")
+    print(response)
+    print("=============COMPLETE MULTIPART-UPLOAD===============")
+    return response
+
+
+def abort_multipart_upload(key, upload_id):
+
+    response = s3_client.abort_multipart_upload(
+        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+        Key=key,
+        UploadId=upload_id
+    )
+    print("=============ABORT MULTIPART-UPLOAD===============")
+    print(response)
+    print("=============ABORT MULTIPART-UPLOAD===============")
+    return response
+
+
+def list_parts_uploaded(key, upload_id):
+
+    response = s3_client.list_parts(
+        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+        Key=key,
+        UploadId=upload_id
+    )
+    print("=============LIST PARTS-UPLOADED===============")
+    print(response)
+    print("=============LIST PARTS-UPLOADED===============")
+    return response

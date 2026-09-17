@@ -42,6 +42,7 @@ class File(CommonDateTimeAbstractModel):
     storage_path = models.TextField()
     metadata = models.TextField()
     content_hash = models.CharField(max_length=64)
+    # parts_completed = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return f"{self.file_name} ({self.status})"
