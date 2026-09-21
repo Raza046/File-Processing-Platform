@@ -2,6 +2,7 @@ import math
 import uuid
 
 import boto3
+from botocore.exceptions import ClientError
 
 from django.conf import settings
 
@@ -19,6 +20,25 @@ s3_client = boto3.client(
     region_name= "us-east-1",
 )
 
+
+def download_from_localstack_s3(bucket_name, object_key, start, end):
+    # Initialize the S3 client targeting LocalStack    
+    try:
+        print("--------DOWNLOADING FILE----------")
+        # Download the file to your specified local directory
+        downloaded_chunk = s3_client.download_file(bucket_name, object_key, Range=f"bytes={start}--{end}")
+        print(f"Successfully downloaded {object_key} with range : bytes= {start}--{end} ")
+        response = {
+            "object Key":object_key,
+            "data":downloaded_chunk,
+            "chunk_range": f"bytes={start}--{end}"
+        }
+        print(response)
+        print("--------DOWNLOADED FILE----------")
+        return response
+
+    except ClientError as e:
+        print(f"Error downloading file: {e}")
 
 
 def create_multipart_upload(file_name, file_size):
@@ -63,11 +83,19 @@ def generate_presigned_upload_url(key, upload_id, part_number):
 
 def complete_multipart_upload(key, upload_id, s3_parts):
 
+    multipart_parts = [
+        {
+            "PartNumber": part["part_number"],
+            "ETag": part["etag"],
+        }
+        for part in s3_parts
+    ]
+
     response = s3_client.complete_multipart_upload(
         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
         Key=key,
         MultipartUpload={
-            'Parts': s3_parts
+            'Parts': multipart_parts
         },
         UploadId=upload_id,
     )

@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from files.views import AbortMultipartUploadView, CompleteFileUploadView, FileProcessingHistoryView, FileStatusView, FilesListView, FileUpdateView, GeneratePreSignedUrlView, InitiateFileUploadView, ListPartsUploadedView
+from files.views import AbortMultipartUploadView, CompleteFileUploadView, FileProcessingHistoryView, FileStatusView, FilesListView, FileUpdateView, GeneratePreSignedUrlView, InitiateFileUploadView, ListPartsUploadedView, StartProcessingFileView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -36,9 +36,24 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/file-upload/initiate', InitiateFileUploadView.as_view(), name='file_upload'),
     path('api/file-upload/presigned-url', GeneratePreSignedUrlView.as_view(), name='pre_signed_url'),
-    path('/api/file-upload/complete/', CompleteFileUploadView.as_view(), name='complete_upload'),
-    path('/api/file-upload/abort/', AbortMultipartUploadView.as_view(), name='upload_abort'), # File abort
-    path('/api/file-upload/list-multipart/', ListPartsUploadedView.as_view(), name='multipart_list'), # File abort
+    path('api/file-upload/complete/', CompleteFileUploadView.as_view(), name='complete_upload'),
+    path('api/file-upload/abort/', AbortMultipartUploadView.as_view(), name='upload_abort'), # File abort
+    path('api/file-upload/list-multipart/', ListPartsUploadedView.as_view(), name='multipart_list'), # File abort.
+
+
+    # Start processing API's
+    path('api/file/start-processing/<str:pk>/', StartProcessingFileView.as_view(), name='start_processing'),
+
+
+    # After processing completion of file, uploading back to S3 requires Multi-part upload again.
+
+    # path('api/processed-file-upload/initiate', InitiateFileUploadView.as_view(), name='file_upload'),
+    # path('api/processed-file-upload/presigned-url', GeneratePreSignedUrlView.as_view(), name='pre_signed_url'),
+    # path('/api/processed-file-upload/complete/', CompleteFileUploadView.as_view(), name='complete_upload'),
+    # path('/api/processed-file-upload/abort/', AbortMultipartUploadView.as_view(), name='upload_abort'), # File abort
+    # path('/api/processed-file-upload/list-multipart/', ListPartsUploadedView.as_view(), name='multipart_list'), # File abort.
+
+
     # path("api/files/<str:pk>/status/", FileStatusView.as_view(), name="file-status",),
     # path('/api/file-upload/{id}/status/', CompleteFileUploadView.as_view(), name='upload_status'), # File status
     # path('api/<str:pk>/file-update', FileUpdateView.as_view(), name='file_update'),

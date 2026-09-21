@@ -35,6 +35,7 @@ class File(CommonDateTimeAbstractModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="files")
+#    re_upload_id = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     file_name = models.CharField(max_length=100)
     file_size = models.PositiveBigIntegerField(validators=[MinValueValidator(1)])
     file_type = models.CharField(choices=FileType.choices, default=FileType.TXT, max_length=100)

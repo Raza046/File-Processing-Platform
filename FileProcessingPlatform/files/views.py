@@ -1,13 +1,13 @@
 from django.shortcuts import render
 from rest_framework.viewsets import ReadOnlyModelViewSet
-from rest_framework.generics import CreateAPIView, UpdateAPIView
+from rest_framework.generics import CreateAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework import status
 from rest_framework.response import Response
 
 from files.permissions import IsOwnerOfFilePermission
-from files.tasks import process_file_task
+from files.tasks import process_file_task, start_file_processing
 from files.models import File, ProcessingHistory
 from files.pagination import FileListPagination, ProcesingHistoryPagination
 from files.serializers import ( CompleteMultipartUploadSerializer, FileListSerializer, FileProcessingHistorySerializer, FileUpdateSerializer,
@@ -107,6 +107,7 @@ class CompleteFileUploadView(CreateAPIView):
     def post(self, request, *args, **kwargs):
 
         serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
         data = serializer.validated_data
         print("=========COMPLETE VALIDATED DATA==========")
@@ -164,6 +165,21 @@ class ListPartsUploadedView(CreateAPIView):
 
         return Response(response, status = status.HTTP_200_OK)
 
+
+class StartProcessingFileView(RetrieveAPIView):
+    serializer_class = None
+    model = File
+    queryset = File.objects.all()
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+
+        file = self.get_object()
+        start_file_processing(file.id)
+        file.status = File.FileStatus.PROCESSING
+        file.save(updated_fields=['status'])
+
+        return Response("Processing Started..!", status = status.HTTP_200_OK)
 
 
 # class FileUploadView(CreateAPIView):.
