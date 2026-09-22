@@ -37,3 +37,4 @@ pypdf==6.12.2
 pandas==2.3.3
 flower==2.0.1
 sentry-sdk[django]
+celery[redis]

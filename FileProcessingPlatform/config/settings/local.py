@@ -190,3 +190,5 @@ AWS_QUERYSTRING_AUTH = False  # optional
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 CELERY_BROKER_URL = "amqp://guest:guest@rabbitmq:5672//"
+
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"

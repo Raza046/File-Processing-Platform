@@ -11,6 +11,9 @@ import pandas as pd
 from files.models import File
 from files.services.file_processor import process_file
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 """
 Work with the Chord here.
@@ -32,23 +35,32 @@ def start_file_processing(file_id: int):
     # 50 by 2 = 25
 
     for chunk_number in range(total_chunks):
-
+        print("INSIDE CHUNK LOOP")
         start  = chunk_number * part_size
 
         if chunk_number == total_chunks - 1:
-            end = file.file_size
+            end = file.file_size - 1
         else:
-            end = start + part_size
+            end = start + part_size - 1
+
+        print(
+            f"Downloading chunk: file_id = {file_id}, start = {start}, end = {end}"
+        )
 
         chain_tasks.append(chain(
-            download_file_chunk.s(file_id, start, end),
+            process_file_chunk.s(file_id, start, end),
             # process_file_task.s(file_id),
             # upload_file_chunk.s(file_id),
         ))
+    print(chain_tasks)
 
-    chord(
-        chain_tasks
-    )(call_back.s(file_id))
+    result = chord(chain_tasks)(
+        call_back.s(file_id)
+    )
+
+    print(f"Result: {result}")
+
+
 
 def get_chunks(file_size):
     # if file_size > (1e+8)-1:
@@ -57,12 +69,13 @@ def get_chunks(file_size):
 
 
 @app.task
-def call_back(file_id):
+def call_back(results, file_id):
 
+    print("CALLBACK RESULTS:", results)
     file_instance = File.objects.get(id=file_id)
-    file_instance.processing_status = "completed"
+    file_instance.status = "completed"
     file_instance.save(
-        update_fields=["processing_status"]
+        update_fields=["status"]
     )
     return True
 
@@ -80,12 +93,16 @@ def download_file_chunk(file_id: int, start: int, end: int):
     #     Range=f"bytes={start}-{end}",
     # )
 
-    download_from_localstack_s3(
+    response = download_from_localstack_s3(
         bucket_name="my-bucket",
         object_key=file_instance.file_name,
-        Range=f"bytes={start}-{end}",
+        start=start,
+        end=end
         # destination_path=f"/tmp/{file_instance.storage_path}"
     )
+
+    return True
+
 
 @app.task
 def upload_file_chunk(file_id: int):
@@ -94,14 +111,13 @@ def upload_file_chunk(file_id: int):
 
     file_instance = File.objects.get(id=file_id)
 
-
-
-def process_file_task(file_id: int):
+@app.task
+def process_file_chunk(file_id: int, start: int, end: int):
 
     file_instance = File.objects.get(id=file_id)
 
-    # file_instance.processing_status = "processing"
-    # file_instance.save(update_fields=["processing_status"])
+    # file_instance.status = "processing"
+    # file_instance.save(update_fields=["status"])
 
     # process_file(file_instance)
 
@@ -121,7 +137,7 @@ def process_file_task(file_id: int):
         print("-------INSIDE TXT ELIF-----------")
         print("-------INSIDE TXT ELIF-----------")
         print("-------INSIDE TXT ELIF-----------")
-        return process_csv.delay(str(file_instance.id))
+        return process_csv.delay(str(file_instance.id), str(start), str(end))
 
     else:
         raise ValueError(f"Unsupported file type: {content_type}")
@@ -150,12 +166,12 @@ def process_pdf(self, file_instance_id):
             extracted_text += text
 
     file_instance.extracted_text = extracted_text
-    file_instance.processing_status = "completed"
+#    file_instance.status = "completed"
 
     file_instance.save(
         update_fields=[
-            "extracted_text",
-            "processing_status",
+            "extracted_text"
+ #           "status",
         ]
     )
 
@@ -169,7 +185,7 @@ def process_pdf(self, file_instance_id):
     retry_backoff=True,
     retry_kwargs={"max_retries": 3},
 )
-def process_csv(self, file_instance_id):
+def process_csv(self, file_instance_id, start, end):
 
     print("-------INSIDE PROCESS CSV-----------")
 
@@ -178,13 +194,28 @@ def process_csv(self, file_instance_id):
     # file_obj = file_instance.id
     # Donwload the file from S3.
 
-    downloaded_file = download_from_localstack_s3(
+    downloaded_file_response = download_from_localstack_s3(
         bucket_name="my-bucket",
         object_key=file_instance.file_name,
-        destination_path=f"/tmp/{file_instance.storage_path}"
+        start=start,
+        end=end
     )
 
-    df = pd.read_csv(downloaded_file)
+    # downloaded_file_response = download_from_localstack_s3(
+    #     bucket_name="my-bucket",
+    #     object_key=file_instance.file_name,
+    #     destination_path=f"/tmp/{file_instance.storage_path}"
+    # )
+
+    file_content = downloaded_file_response["data"]["Body"].read()
+    print("++++++++++++++++++++++++++++")
+    print("++++++++++++++++++++++++++++")
+    print(downloaded_file_response["data"]["Body"])
+    print(file_content)
+    print("++++++++++++++++++++++++++++")
+    print("++++++++++++++++++++++++++++")
+    df = pd.read_csv(BytesIO(file_content))
+#    df = pd.read_csv(downloaded_file_response["Body"].read())
 
     # hashed_content = calculate_sha256(f"/tmp/{file_instance.storage_path}")
     # print(f"Hashed Content: {hashed_content}")
@@ -205,12 +236,13 @@ def process_csv(self, file_instance_id):
     # store parsed rows into DB here
 
     file_instance.metadata = metadata
-    file_instance.processing_status = "completed"
+#    file_instance.status = File.FileStatus.COMPLETED
     # file_instance.content_hash = hashed_content
 
     file_instance.save(
-        update_fields=["metadata", "processing_status"]
-        # update_fields=["metadata", "processing_status", "content_hash"]
+        update_fields=["metadata"]
+#        update_fields=["metadata", "status"]
+        # update_fields=["metadata", "status", "content_hash"]
     )
 
     return metadata
@@ -253,8 +285,8 @@ def process_image(self, file_instance_id):
     }
 
     file_instance.metadata = metadata
-    file_instance.processing_status = File.FileStatus.COMPLETED
+    file_instance.status = File.FileStatus.COMPLETED
 
-    file_instance.save(update_fields=["metadata", "processing_status"])
+    file_instance.save(update_fields=["metadata", "status"])
 
     return metadata

@@ -22,18 +22,18 @@ s3_client = boto3.client(
 
 
 def download_from_localstack_s3(bucket_name, object_key, start, end):
-    # Initialize the S3 client targeting LocalStack    
+    # Initialize the S3 client targeting LocalStack
     try:
         print("--------DOWNLOADING FILE----------")
         # Download the file to your specified local directory
-        downloaded_chunk = s3_client.download_file(bucket_name, object_key, Range=f"bytes={start}--{end}")
+        downloaded_chunk = s3_client.get_object(Bucket=bucket_name, Key=object_key, Range=f"bytes={start}--{end}")
         print(f"Successfully downloaded {object_key} with range : bytes= {start}--{end} ")
         response = {
             "object Key":object_key,
             "data":downloaded_chunk,
             "chunk_range": f"bytes={start}--{end}"
         }
-        print(response)
+        print(response['data']['Body'])
         print("--------DOWNLOADED FILE----------")
         return response
 
