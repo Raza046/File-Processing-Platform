@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from files.permissions import IsOwnerOfFilePermission
-from files.tasks import process_file_task, start_file_processing
+from files.tasks import process_file_chunk, start_file_processing
 from files.models import File, ProcessingHistory
 from files.pagination import FileListPagination, ProcesingHistoryPagination
 from files.serializers import ( CompleteMultipartUploadSerializer, FileListSerializer, FileProcessingHistorySerializer, FileUpdateSerializer,
@@ -177,7 +177,7 @@ class StartProcessingFileView(RetrieveAPIView):
         file = self.get_object()
         start_file_processing(file.id)
         file.status = File.FileStatus.PROCESSING
-        file.save(updated_fields=['status'])
+        file.save(update_fields=['status'])
 
         return Response("Processing Started..!", status = status.HTTP_200_OK)
 
@@ -225,7 +225,7 @@ class FileUpdateView(UpdateAPIView):
         # file_instance = serializer.save()
         file_instance = self.get_object()
         # start celery task
-        process_file_task(file_instance.id)
+        process_file_chunk(file_instance.id)
 
         return response
 
