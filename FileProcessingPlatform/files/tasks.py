@@ -116,11 +116,6 @@ def process_file_chunk(file_id: int, start: int, end: int):
 
     file_instance = File.objects.get(id=file_id)
 
-    # file_instance.status = "processing"
-    # file_instance.save(update_fields=["status"])
-
-    # process_file(file_instance)
-
     content_type = file_instance.file_type
 
     if content_type.startswith("image/"):
@@ -134,9 +129,6 @@ def process_file_chunk(file_id: int, start: int, end: int):
         "application/csv",
         "application/vnd.ms-excel",
     ]:
-        print("-------INSIDE TXT ELIF-----------")
-        print("-------INSIDE TXT ELIF-----------")
-        print("-------INSIDE TXT ELIF-----------")
         return process_csv.delay(str(file_instance.id), str(start), str(end))
 
     else:
@@ -166,12 +158,10 @@ def process_pdf(self, file_instance_id):
             extracted_text += text
 
     file_instance.extracted_text = extracted_text
-#    file_instance.status = "completed"
 
     file_instance.save(
         update_fields=[
             "extracted_text"
- #           "status",
         ]
     )
 
@@ -200,12 +190,6 @@ def process_csv(self, file_instance_id, start, end):
         start=start,
         end=end
     )
-
-    # downloaded_file_response = download_from_localstack_s3(
-    #     bucket_name="my-bucket",
-    #     object_key=file_instance.file_name,
-    #     destination_path=f"/tmp/{file_instance.storage_path}"
-    # )
 
     file_content = downloaded_file_response["data"]["Body"].read()
     print("++++++++++++++++++++++++++++")
