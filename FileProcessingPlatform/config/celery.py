@@ -23,15 +23,15 @@ app.conf.task_queues = (
 )
 
 app.conf.task_routes = {
-    "files.tasks.download_file_chunk": {
-        "queue": "celery",
-        "routing_key": "celery",
-    },
+    # "files.tasks.download_file_chunk": {
+    #     "queue": "celery",
+    #     "routing_key": "celery",
+    # },
 
-    "files.tasks.upload_file_chunk": {
-        "queue": "celery",
-        "routing_key": "celery",
-    },
+    # "files.tasks.upload_file_chunk": {
+    #     "queue": "celery",
+    #     "routing_key": "celery",
+    # },
 
     "files.tasks.call_back": {
         "queue": "celery",

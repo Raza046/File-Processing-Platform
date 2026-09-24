@@ -80,36 +80,35 @@ def call_back(results, file_id):
     return True
 
 
-@app.task
-def download_file_chunk(file_id: int, start: int, end: int):
+# @app.task
+# def download_file_chunk(file_id: int, start: int, end: int):
 
-    print("------INSIDE DONWLOAD CHUNK METHOD----------")
+#     print("------INSIDE DONWLOAD CHUNK METHOD----------")
 
-    file_instance = File.objects.get(id=file_id)
+#     file_instance = File.objects.get(id=file_id)
 
-    # response = cli.get_object(
-    #     Bucket="my-bucket",
-    #     Key="my-file",
-    #     Range=f"bytes={start}-{end}",
-    # )
+#     # response = cli.get_object(
+#     #     Bucket="my-bucket",
+#     #     Key="my-file",
+#     #     Range=f"bytes={start}-{end}",
+#     # )
 
-    response = download_from_localstack_s3(
-        bucket_name="my-bucket",
-        object_key=file_instance.file_name,
-        start=start,
-        end=end
-        # destination_path=f"/tmp/{file_instance.storage_path}"
-    )
+#     response = download_from_localstack_s3(
+#         bucket_name="my-bucket",
+#         object_key=file_instance.file_name,
+#         start=start,
+#         end=end
+#         # destination_path=f"/tmp/{file_instance.storage_path}"
+#     )
 
-    return True
+#     return True
 
 
-@app.task
-def upload_file_chunk(file_id: int):
+# @app.task
+# def upload_file_chunk(file_id: int):
 
-    # check if the initate API is called. Ned to store something in DB.
-
-    file_instance = File.objects.get(id=file_id)
+#     # check if the initate API is called. Ned to store something in DB.
+#     file_instance = File.objects.get(id=file_id)
 
 @app.task
 def process_file_chunk(file_id: int, start: int, end: int):
@@ -181,8 +180,7 @@ def process_csv(self, file_instance_id, start, end):
 
     # file_obj = file_instance.file.open("rb")
     file_instance = File.objects.get(id=file_instance_id)
-    # file_obj = file_instance.id
-    # Donwload the file from S3.
+    # Download the file from S3.
 
     downloaded_file_response = download_from_localstack_s3(
         bucket_name="my-bucket",
@@ -220,13 +218,8 @@ def process_csv(self, file_instance_id, start, end):
     # store parsed rows into DB here
 
     file_instance.metadata = metadata
-#    file_instance.status = File.FileStatus.COMPLETED
-    # file_instance.content_hash = hashed_content
-
     file_instance.save(
         update_fields=["metadata"]
-#        update_fields=["metadata", "status"]
-        # update_fields=["metadata", "status", "content_hash"]
     )
 
     return metadata
